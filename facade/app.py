@@ -1,18 +1,20 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
+import uuid
 import requests
 import os
 
 
 os.environ['NO_PROXY'] = '127.0.0.1'
-STORAGE = "http://127.0.0.1:5001"
-STATIC = "http://127.0.0.1:5002"
+LOGGING_SERVICE = "http://127.0.0.1:5001"
+MESSAGE_SERVICE = "http://127.0.0.1:5002"
 app = Flask(__name__)
 
 
 @app.route('/save', methods=["POST"])
 def save():
+    uid = str(uuid.uuid4())
     try:
-        requests.post(STORAGE + '/save', json=request.json)
+        requests.post(LOGGING_SERVICE + '/save', json={uid: request.json})
     except Exception as e:
         return f"Unable to save: {e}"
     return "Saved successfully"
@@ -21,24 +23,15 @@ def save():
 @app.route('/retrieve', methods=["GET"])
 def retrieve():
     '''
-    Accepts json body as a dict {"keys": []}, whose values we want to retrieve
-    :return: [] - list of values
+    Retrieves data from logging and messages services as an concatenated string
     '''
-    result = None
     try:
-        result = requests.get(STORAGE + '/retrieve', json=request.json)
+        result_log = requests.get(LOGGING_SERVICE + '/retrieve', json=request.json)
+        result_mes = requests.get(MESSAGE_SERVICE + '/retrieve', json=request.json)
     except Exception as e:
-        return f"Unable to get data from the storage: {e}"
-    return jsonify(result.json()), result.status_code
+        return f"Unable to get data from servies: {e}"
+    return result_log.text + '|' + result_mes.text
 
-
-@app.route('/', methods=["GET", "POST"])
-def do_something():
-    if request.method == "GET":
-        return requests.get(STATIC + '/', json=request.json).content
-    else:
-        requests.post(STATIC + '/', json=request.json)
-        return f"Posted successfully"
 
 if __name__ == '__main__':
     app.run()
