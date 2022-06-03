@@ -1,18 +1,35 @@
+"""This module must be run the last one."""
 from flask import Flask, request
 import uuid
 import hazelcast
 import requests
 import os
 import random
-
+import consul
+import sys
 
 os.environ['NO_PROXY'] = '127.0.0.1'
-LOGGING_SERVICES = ["http://127.0.0.1:5003", "http://127.0.0.1:5004", "http://127.0.0.1:5005"]
-MESSAGE_SERVICES = ["http://127.0.0.1:5001", "http://127.0.0.1:5001"]
+
+port = int(sys.argv[1])
+LOGGING_SERVICES = []
+MESSAGE_SERVICES = []
 app = Flask(__name__)
 
+session = consul.Consul(host='localhost', port=8500)
+session.agent.service.register('facade-service', port=port, service_id=f"facade_{str(uuid.uuid4())}")
+
+services = session.agent.services()
+
+for key, value in services.items():
+    service_type = key[0]
+    if service_type == "l":
+        LOGGING_SERVICES.append(f"http://localhost:{value['Port']}/")
+    elif service_type == "m":
+        MESSAGE_SERVICES.append(f"http://localhost:{value['Port']}/")
+
+print(LOGGING_SERVICES)
 client = hazelcast.HazelcastClient()
-q = client.get_queue("message-queue")
+q = client.get_queue(session.kv.get('queue')[1]['Value'].decode("utf-8")).blocking()
 
 
 @app.route('/save', methods=["POST"])
@@ -54,4 +71,4 @@ def retrieve():
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(port=port)
