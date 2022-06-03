@@ -1,6 +1,7 @@
 /venv
 /.idea
 /logging/__pycache__/
-messages/__pycache__/
-hazelcast/__pycache__/
-facade/__pycache__/
+/messages/__pycache__/
+/hazelcast/__pycache__/
+/facade/__pycache__/
+/__pycache__/
